@@ -38,15 +38,15 @@ func (b BinaryExpr) exprType() {
 
 }
 
-func (c CallExpr) Pos() token.Pos {
+func (c CallStmt) Pos() token.Pos {
 	return token.NoPos
 }
 
-func (c CallExpr) End() token.Pos {
+func (c CallStmt) End() token.Pos {
 	return token.NoPos
 }
 
-func (c CallExpr) exprType() {
+func (c CallStmt) exprType() {
 
 }
 
@@ -146,7 +146,7 @@ func (n Number) exprType() {
 
 }
 
-func (c CallExpr) stmtType() {
+func (c CallStmt) stmtType() {
 
 }
 

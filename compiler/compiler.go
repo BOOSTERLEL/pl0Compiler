@@ -92,6 +92,15 @@ func (p *Compiler) compileProgram(w io.Writer, program *ast.Program) {
 	}
 
 	for _, fn := range program.Funcs {
+		var mangledName = fmt.Sprintf("@pl_0_%s", fn.Name)
+		p.scope.Insert(&Object{
+			Name:        fn.Name,
+			MangledName: mangledName,
+			Node:        fn,
+		})
+	}
+
+	for _, fn := range program.Funcs {
 		p.compileProcedure(w, fn)
 	}
 
@@ -109,14 +118,6 @@ func (p *Compiler) compileProcedure(w io.Writer, fn *ast.ProcDecl) {
 		argNameList = append(argNameList, mangledName)
 	}
 
-	var mangledName = fmt.Sprintf("@pl_0_%s", fn.Name)
-
-	p.scope.Insert(&Object{
-		Name:        fn.Name,
-		MangledName: mangledName,
-		Node:        fn,
-	})
-
 	if fn.Body == nil {
 		_, _ = fmt.Fprintf(w, "declare i32 @pl_0_%s()\n", fn.Name)
 		return
@@ -127,12 +128,12 @@ func (p *Compiler) compileProcedure(w io.Writer, fn *ast.ProcDecl) {
 	for i, argRegName := range argNameList {
 		if first {
 			first = false
-			fmt.Fprintf(w, "i32 noundef %s.arg%d", argRegName, i)
+			_, _ = fmt.Fprintf(w, "i32 noundef %s.arg%d", argRegName, i)
 			continue
 		}
-		fmt.Fprintf(w, ", i32 noundef %s.arg%d", argRegName, i)
+		_, _ = fmt.Fprintf(w, ", i32 noundef %s.arg%d", argRegName, i)
 	}
-	fmt.Fprintf(w, ") {\n")
+	_, _ = fmt.Fprintf(w, ") {\n")
 
 	// proc body
 	func() {
@@ -150,8 +151,8 @@ func (p *Compiler) compileProcedure(w io.Writer, fn *ast.ProcDecl) {
 				Node:        fn,
 			})
 
-			fmt.Fprintf(w, "\t%s = alloca i32, align 4\n", mangledName)
-			fmt.Fprintf(w, "\tstore i32 %s, i32* %s\n", argRegName, mangledName)
+			_, _ = fmt.Fprintf(w, "\t%s = alloca i32, align 4\n", mangledName)
+			_, _ = fmt.Fprintf(w, "\tstore i32 %s, i32* %s\n", argRegName, mangledName)
 		}
 
 		// body
@@ -198,6 +199,8 @@ func (p *Compiler) compileStmt(w io.Writer, stmt ast.Stmt) {
 		}
 	case *ast.ExprStmt:
 		p.compileExpr(w, stmt.X)
+	case *ast.CallStmt:
+		p.compileStmtCall(w, stmt)
 	case *ast.IOStmt:
 		p.compileIOStmt(w, stmt)
 
@@ -345,6 +348,31 @@ func (p *Compiler) compileStmtRepeat(w io.Writer, stmt *ast.RepeatStmt) {
 	_, _ = fmt.Fprintf(w, "\n%s:\n", repeatEnd)
 }
 
+func (p *Compiler) compileStmtCall(w io.Writer, expr *ast.CallStmt) {
+	var fnName string
+	if _, obj := p.scope.Lookup(expr.ProcedureName.Name); obj != nil {
+		fnName = obj.MangledName
+	} else {
+		panic(fmt.Sprintf("proc %s undefined", expr.ProcedureName.Name))
+	}
+
+	var localNames []string
+	for _, arg := range expr.Args {
+		localNames = append(localNames, p.compileExpr(w, arg))
+	}
+	_, _ = fmt.Fprintf(w, "\tcall i32 %s(", fnName)
+	first := true
+	for _, localName := range localNames {
+		if first {
+			_, _ = fmt.Fprintf(w, "i32 noundef %s", localName)
+			first = false
+			continue
+		}
+		_, _ = fmt.Fprintf(w, ", i32 noundef %s", localName)
+	}
+	_, _ = fmt.Fprintf(w, ")\n")
+}
+
 func (p *Compiler) compileIOStmt(w io.Writer, stmt *ast.IOStmt) {
 	var targetName string
 	switch stmt.Type {
@@ -456,19 +484,6 @@ func (p *Compiler) compileExpr(w io.Writer, expr ast.Expr) (localName string) {
 		return p.compileExpr(w, expr.X)
 	case *ast.ParenExpr:
 		return p.compileExpr(w, expr.X)
-	case *ast.CallExpr:
-		var fnName string
-		if _, obj := p.scope.Lookup(expr.ProcedureName.Name); obj != nil {
-			fnName = obj.MangledName
-		} else {
-			panic(fmt.Sprintf("proc %s undefined", expr.ProcedureName.Name))
-		}
-
-		localName = p.genId()
-		_, _ = fmt.Fprintf(w, "\t%s = call i32(i32) %s()\n",
-			localName, fnName,
-		)
-		return localName
 
 	default:
 		panic(fmt.Sprintf("unknown: %[1]T, %[1]v", expr))

@@ -92,7 +92,7 @@ type IfStmt struct {
 	If   token.Pos  // if 关键字的位置
 	Cond Expr       // if 条件, *BinaryExpr
 	Body *BlockStmt // if 为真时对应的语句列表
-	Else Stmt // else 对应的语句
+	Else Stmt       // else 对应的语句
 }
 
 // WhileStmt 表示一个 while 语句节点.
@@ -157,9 +157,11 @@ type ParenExpr struct {
 	Rparen token.Pos // ")" 的位置
 }
 
-// CallExpr 表示一个函数调用
-type CallExpr struct {
+// CallStmt 表示一个函数调用
+type CallStmt struct {
 	ProcedureName *Ident    // 函数名字
 	CallPos       token.Pos // 位置
-	Params        *FieldList
+	Lparen        token.Pos // '(' 位置
+	Args          []Expr    // 调用参数列表
+	Rparen        token.Pos // ')' 位置
 }

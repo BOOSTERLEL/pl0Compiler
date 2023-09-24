@@ -26,7 +26,6 @@ func (p *Parser) parseExprBinary(prec int) ast.Expr {
 			Y:     y,
 		}
 	}
-	return nil
 }
 
 func (p *Parser) parseExprUnary() ast.Expr {
@@ -72,11 +71,11 @@ func (p *Parser) parseExprPrimary() ast.Expr {
 
 }
 
-func (p *Parser) parseExprCall() *ast.CallExpr {
+func (p *Parser) parseExprCall() *ast.CallStmt {
 	tokIdent := p.MustAcceptToken(token.IDENT)
 	p.MustAcceptToken(token.SEMICOLON)
 
-	return &ast.CallExpr{
+	return &ast.CallStmt{
 		ProcedureName: &ast.Ident{
 			NamePos: tokIdent.Pos,
 			Name:    tokIdent.Literal,

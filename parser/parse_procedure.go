@@ -49,29 +49,23 @@ func (p *Parser) parseProcedure() *ast.ProcDecl {
 	return proc
 }
 
-func (p *Parser) parseCall() *ast.CallExpr {
+func (p *Parser) parseCall() *ast.CallStmt {
 	tokCall := p.MustAcceptToken(token.CALL)
 	tokProcIdent := p.MustAcceptToken(token.IDENT)
-	call := &ast.CallExpr{
+	call := &ast.CallStmt{
 		ProcedureName: &ast.Ident{
 			NamePos: tokProcIdent.Pos,
 			Name:    tokProcIdent.Literal,
 		},
 		CallPos: tokCall.Pos,
-		Params:  &ast.FieldList{},
 	}
 
-	if _, ok := p.AcceptToken(token.LPAREN); ok {
+	if tokLparen, ok := p.AcceptToken(token.LPAREN); ok {
+		call.Lparen = tokLparen.Pos
 		for {
-			tokArg := p.MustAcceptToken(token.IDENT)
-			call.Params.List = append(call.Params.List, &ast.Field{
-				Name: &ast.Ident{
-					NamePos: tokArg.Pos,
-					Name:    tokArg.Literal,
-				},
-			})
-			// )
-			if _, ok := p.AcceptToken(token.RPAREN); ok {
+			call.Args = append(call.Args, p.parseExpr())
+			if tokRparen, ok := p.AcceptToken(token.RPAREN); ok {
+				call.Rparen = tokRparen.Pos
 				break
 			}
 			p.MustAcceptToken(token.COMMA)
